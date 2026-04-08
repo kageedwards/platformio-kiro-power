@@ -1,5 +1,5 @@
 ---
-name: "platformio"
+name: "platformio-kiro-power"
 displayName: "PlatformIO"
 description: "Comprehensive embedded development guide for PlatformIO CLI. Covers project management, building, flashing, debugging, serial monitoring, library management, and device discovery across all supported platforms and boards."
 keywords: ["platformio", "pio", "embedded", "firmware", "microcontroller"]

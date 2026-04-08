@@ -8,7 +8,9 @@ A community-built [Kiro Power](https://kiro.dev) that gives your AI assistant de
 
 When this power is active, Kiro understands how to:
 
-- Initialize and configure PlatformIO projects (`platformio.ini`)
+- **Set up new projects** with a formalized, repeatable workflow — board validation, framework-correct boilerplate, peripheral-aware scaffolding, and build verification
+- **Handle boards not in the PlatformIO registry** by researching online and creating custom board definitions with proper pin variants
+- **Configure IDE IntelliSense** for Kiro and other VS Code forks via clangd and compilation database generation
 - Build, upload, and monitor firmware via the `pio` CLI
 - Search and install libraries from the PlatformIO Registry
 - Discover connected devices and installed platforms/boards
@@ -19,12 +21,34 @@ When this power is active, Kiro understands how to:
 - Look up datasheets and technical reference manuals from trusted sources
 - Use inclusive language in new code and documentation
 
+## Project Initialization
+
+The power includes a formalized 11-step project init workflow that ensures consistent results regardless of context. When you ask Kiro to create a new PlatformIO project, it will:
+
+1. Verify `pio` CLI prerequisites and check your IDE's C/C++ IntelliSense setup
+2. Confirm the project root directory (defaults to workspace root, asks before using non-empty directories)
+3. Validate the target board against `pio boards` — or research online and create a custom board definition if the board isn't in the registry
+4. Resolve the correct framework and generate framework-matched boilerplate source code
+5. Identify on-board peripherals (LoRa, OLED, GPS, etc.) and offer to include initialization code with appropriate libraries
+6. Configure `platformio.ini` defaults, `.gitignore`, and verify the build
+7. Generate a `compile_commands.json` compilation database for clangd IntelliSense
+
+See `steering/project-init.md` for the full procedure.
+
+## IDE Setup (Kiro / VS Code Forks)
+
+Kiro is a VS Code fork and may not have direct access to the Microsoft Marketplace. This power uses the PlatformIO CLI directly, so the PlatformIO IDE extension is optional. For C/C++ IntelliSense:
+
+- **clangd** (recommended) — open-source, may be available in Kiro's extension search. If not, sideload the VSIX from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd). Requires `compile_commands.json` (generated automatically during project init).
+- **Microsoft C/C++** — sideload the VSIX from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools). Required if you also want the PlatformIO IDE extension GUI.
+
 ## Steering Files
 
-Context is loaded on demand to keep things lean. The power includes eight steering guides:
+Context is loaded on demand to keep things lean. The power includes nine steering guides:
 
 | File | Covers |
 |---|---|
+| `project-init` | **Formalized 11-step project initialization workflow** — directory selection, board validation (including custom board definitions for boards not in the registry), framework resolution, peripheral-aware boilerplate, IntelliSense setup |
 | `cli-reference` | Full `pio` CLI command reference — build, upload, debug, monitor, packages, and all flags |
 | `project-structure` | `platformio.ini` config, multi-environment setups, library deps, build flags, scripting |
 | `coding-standards` | Embedded coding conventions for C, C++, Assembly, Rust, and Python |

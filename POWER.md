@@ -82,7 +82,7 @@ After installing a C/C++ language server extension, open a `.cpp` or `.c` file i
 - Hovering over functions shows their signatures
 - Go-to-definition (F12) works on framework and library symbols
 
-If using clangd, you must first generate the compilation database (see project-init Step 11).
+If using clangd, you must first generate the compilation database (see project-init Step 11). You must also create a `.clangd` config file that overrides the compiler target to a known LLVM triple (e.g., `--target=x86_64-linux-gnu` for xtensa-based ESP32 boards) and removes unrecognized cross-compiler flags. Without this, clangd cannot parse the standard library headers and will produce false errors throughout the project. See project-init Step 11 for platform-specific `.clangd` configurations.
 
 ## Quick Workflows
 

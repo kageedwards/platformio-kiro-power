@@ -421,17 +421,94 @@ After a successful build, generate the compilation database so the C/C++ languag
    compile_commands.json
    ```
 
-4. **For clangd users**, optionally create a `.clangd` config file in the project root to suppress common false positives with cross-compilation toolchains:
+4. **For clangd users**, create a `.clangd` config file in the project root. This is **required**, not optional — without it, clangd will fail to index the standard library and produce false errors throughout the project.
+
+   **Why this is necessary:** PlatformIO cross-compilation toolchains use compiler targets (like `xtensa-esp32-elf`) and flags that clangd does not recognize. clangd is built on LLVM, which does not include an xtensa backend. When clangd encounters an unknown target or unrecognized flags, it fails to parse standard library headers entirely, producing errors like "incomplete due to errors" in the clangd log and false squiggles like "No matching member function for call to 'println'" in the editor. The fix is to override the target to a known LLVM triple and strip the unrecognized flags.
+
+   **The `.clangd` config must do two things:**
+   1. **Add a known `--target`** so clangd can parse standard library and toolchain headers. Use a generic triple like `x86_64-linux-gnu` — this does not affect the actual build (which still uses the real cross-compiler via `pio run`), it only tells clangd's analyzer how to interpret the headers.
+   2. **Remove unrecognized compiler flags** that the cross-toolchain passes but clangd/LLVM does not understand.
+
+   Select the correct `.clangd` config based on the project's platform:
+
+   **ESP32 (Xtensa) — `esp32dev`, `esp32-s3`, `esp32-c3` (xtensa variants), Heltec, TTGO, etc.:**
    ```yaml
    CompileFlags:
+     Add:
+       - --target=x86_64-linux-gnu
      Remove:
        - -mtext-section-literals
        - -mlongcalls
        - -fstrict-volatile-bitfields
        - -free
        - -fipa-pta
+       - -fno-jump-tables
+       - -fno-tree-switch-conversion
+       - -mfix-esp32-psram-cache-issue
+       - -mfix-esp32-psram-cache-strategy=memw
    ```
-   The specific flags to remove depend on the platform. ESP32 (xtensa) commonly needs the flags above removed. ARM and AVR toolchains may need different adjustments. If clangd shows errors on valid code after generating the compilation database, check the `compile_commands.json` for unfamiliar flags and add them to the `Remove` list.
+
+   **ESP32-C3 / ESP32-C6 / ESP32-H2 (RISC-V variants):**
+   ```yaml
+   CompileFlags:
+     Add:
+       - --target=riscv32-unknown-elf
+     Remove:
+       - -fstrict-volatile-bitfields
+       - -free
+       - -fipa-pta
+       - -fno-jump-tables
+       - -fno-tree-switch-conversion
+       - -march=rv32imc_zicsr_zifencei
+       - -mabi=ilp32
+   ```
+   Note: clangd has RISC-V support, so a RISC-V target triple works here. Adjust `-march` removal if clangd recognizes the specific extension string in your toolchain version.
+
+   **AVR (Arduino Uno, Mega, Nano):**
+   ```yaml
+   CompileFlags:
+     Add:
+       - --target=avr
+     Remove:
+       - -mmcu=*
+   ```
+   Note: clangd has basic AVR support. The `-mmcu` flag specifies the exact chip (e.g., `atmega328p`) and may or may not be recognized depending on your clangd version. If you still see errors, switch to `--target=x86_64-linux-gnu` as a fallback.
+
+   **ARM (STM32, nRF52, RP2040, SAMD, Teensy):**
+   ```yaml
+   CompileFlags:
+     Add:
+       - --target=arm-none-eabi
+     Remove:
+       - -mfloat-abi=*
+       - -mfpu=*
+   ```
+   Note: clangd has good ARM support. Most ARM flags are recognized. Only remove flags that cause specific errors in your setup.
+
+   **SiFive / RISC-V (HiFive, freedom-e-sdk):**
+   ```yaml
+   CompileFlags:
+     Add:
+       - --target=riscv32-unknown-elf
+     Remove:
+       - -fstrict-volatile-bitfields
+   ```
+
+   **Fallback (any platform with clangd errors):**
+   If you're unsure which flags to remove, or the platform-specific config above doesn't resolve all errors:
+   ```yaml
+   CompileFlags:
+     Add:
+       - --target=x86_64-linux-gnu
+     Remove:
+       - -*
+   ```
+   This nuclear option removes all flags and uses a generic target. It sacrifices some cross-compilation-specific diagnostics but guarantees clangd can parse the code. Refine from here by adding back flags that clangd recognizes.
+
+   **Diagnosing remaining issues:** If clangd still shows errors after applying the config:
+   - Check the clangd log (Output panel → "clangd" channel) for "unknown argument" or "unknown target" messages.
+   - Inspect `compile_commands.json` for the specific flags being passed.
+   - Add any unrecognized flags to the `Remove` list in `.clangd`.
 
 5. **Verify IntelliSense.** Tell the user to open `src/main.cpp` (or `.c`) and check:
    - Framework headers (e.g., `#include <Arduino.h>`) resolve without errors
@@ -473,3 +550,4 @@ Before reporting project creation as complete, verify all of the following:
 - [ ] `pio run` build succeeded
 - [ ] Compilation database generated (`pio run -t compiledb`) with `pre_compiledb.py` for toolchain paths
 - [ ] `compile_commands.json` added to `.gitignore`
+- [ ] `.clangd` config created with correct `--target` and flag removals for the platform (required for clangd users)

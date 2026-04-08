@@ -22,6 +22,7 @@ This power uses lazy-loaded steering files to keep context lean. Load them as ne
 - **serial-protocols** — Best practices and standards for RS-232, USB (CDC/HID), SPI, I2C/TWI, UART, and 1-Wire serial communication protocols across embedded platforms. Load when working with hardware communication buses.
 - **network-protocols** — Best practices for TCP, UDP, and LoRa/LoRaWAN networking on embedded devices. Covers socket programming on constrained devices, MQTT, CoAP, and radio configuration. Load when working with networked firmware.
 - **coding-standards** — Idiomatic coding conventions and style guidelines for C, C++, Assembly, Rust, and Python in embedded contexts. Load when writing or reviewing firmware code.
+- **project-init** — Formalized step-by-step procedure for creating a new PlatformIO project. Covers directory selection, board validation, framework resolution, boilerplate generation, and build verification. **Load this whenever creating or scaffolding a new project.**
 - **project-structure** — PlatformIO project layout, `platformio.ini` configuration reference, multi-environment setups, library dependency management, build flags, and advanced scripting. Load when setting up or restructuring a project.
 - **debugging-guide** — Unified Debugger configuration, debug tool setup (J-Link, ST-Link, CMSIS-DAP, OpenOCD, etc.), GDB usage, and common debugging workflows. Load when debugging firmware.
 - **datasheet-lookup** — Methodical approach to finding datasheets, technical reference manuals, and peripheral documentation for MCUs and external devices from trusted sources. Load when you need chip or peripheral specifications.
@@ -84,14 +85,17 @@ pio device list --json-output
 
 ### Create a New Project
 
-```bash
-# Interactive — will prompt for board and framework
-pio project init
+**Load the `project-init` steering file and follow its step-by-step procedure.** The full workflow is defined there. The key rules are:
 
-# Explicit board and framework
-pio project init --board esp32dev --project-option "framework=arduino"
-pio project init --board megaatmega2560 --project-option "framework=arduino"
-pio project init --board sifive-hifive1-revb --project-option "framework=freedom-e-sdk"
+1. **Project root defaults to the workspace root.** Never silently pick a subdirectory.
+2. **If the workspace root has existing non-dotfile content**, show the user what's there and ask whether to proceed or use a subdirectory.
+3. **Validate the board ID** with `pio boards <filter> --json-output` before initializing.
+4. **Generate the correct boilerplate source file** for the framework (Arduino → `setup()`/`loop()`, ESP-IDF → `app_main()`, etc.). `pio project init` does not create source files — you must.
+5. **Verify the build** with `pio run` before reporting success.
+
+Quick reference (but always use the full procedure from the steering file):
+```bash
+pio project init -d <project_root> --board <board_id> -O "framework=<framework>"
 ```
 
 ### Build, Upload, Monitor
@@ -153,27 +157,29 @@ pio pkg update
 
 When working on a PlatformIO project, follow these practices:
 
-1. **Read `platformio.ini` first.** Always understand the project's target environments, boards, frameworks, and existing dependencies before suggesting changes.
+1. **For new projects, load the `project-init` steering file and follow it exactly.** The project initialization procedure is formalized — do not improvise. The workspace root is the default project directory. Never create a subdirectory without the user's explicit approval. Always validate the board, generate framework-correct boilerplate, and verify the build.
 
-2. **Query the environment.** Use `pio boards --installed` and `pio device list` to understand what platforms are available and what hardware is connected. Use `pio pkg list` to see current dependencies. Don't assume — ask the toolchain.
+2. **Read `platformio.ini` first.** Always understand the project's target environments, boards, frameworks, and existing dependencies before suggesting changes.
 
-3. **Respect platform differences.** Communication protocols, register layouts, memory constraints, and toolchain quirks vary widely even among boards on the same platform. Always verify against the specific board and MCU.
+3. **Query the environment.** Use `pio boards --installed` and `pio device list` to understand what platforms are available and what hardware is connected. Use `pio pkg list` to see current dependencies. Don't assume — ask the toolchain.
 
-4. **Use the registry.** When a user needs a driver or library, search with `pio pkg search` first. Registry entries contain headers, examples, and compatibility metadata that are invaluable.
+4. **Respect platform differences.** Communication protocols, register layouts, memory constraints, and toolchain quirks vary widely even among boards on the same platform. Always verify against the specific board and MCU.
 
-5. **Look up datasheets on demand.** When you need chip-specific information (register maps, electrical characteristics, peripheral capabilities), use the datasheet-lookup steering file's methodology to find authoritative sources.
+5. **Use the registry.** When a user needs a driver or library, search with `pio pkg search` first. Registry entries contain headers, examples, and compatibility metadata that are invaluable.
 
-6. **Match the language idiom.** Embedded projects span C, C++, Rust, Python, and ASM. Load the coding-standards steering file and follow the conventions for whichever language the project uses.
+6. **Look up datasheets on demand.** When you need chip-specific information (register maps, electrical characteristics, peripheral capabilities), use the datasheet-lookup steering file's methodology to find authoritative sources.
 
-7. **Protocol awareness.** When working with SPI, I2C, UART, RS-232, USB, TCP, UDP, or LoRa, load the relevant steering file. Protocol configuration is highly device-specific and getting it wrong can damage hardware or produce silent failures.
+7. **Match the language idiom.** Embedded projects span C, C++, Rust, Python, and ASM. Load the coding-standards steering file and follow the conventions for whichever language the project uses.
 
-8. **Don't guess upload ports.** Use `pio device list` to discover connected devices. If multiple devices are connected, ask the user which one to target.
+8. **Protocol awareness.** When working with SPI, I2C, UART, RS-232, USB, TCP, UDP, or LoRa, load the relevant steering file. Protocol configuration is highly device-specific and getting it wrong can damage hardware or produce silent failures.
 
-9. **Prefer `pio run -t upload -t monitor`** for the common flash-and-watch workflow. It chains build, upload, and serial monitor in one command.
+9. **Don't guess upload ports.** Use `pio device list` to discover connected devices. If multiple devices are connected, ask the user which one to target.
 
-10. **Use `--json-output`** when you need to parse CLI output programmatically for board IDs, device paths, or package metadata.
+10. **Prefer `pio run -t upload -t monitor`** for the common flash-and-watch workflow. It chains build, upload, and serial monitor in one command.
 
-11. **Use inclusive language — without breaking anything.** In code you write (variable names, function names, comments, documentation), prefer inclusive terminology (controller/peripheral, allowlist/blocklist, plug/socket). But never alter external URLs, library API calls, register names, branch names, or protocol-level identifiers to match — correctness and interoperability always come first. Load the inclusive-language steering file for the full guide.
+11. **Use `--json-output`** when you need to parse CLI output programmatically for board IDs, device paths, or package metadata.
+
+12. **Use inclusive language — without breaking anything.** In code you write (variable names, function names, comments, documentation), prefer inclusive terminology (controller/peripheral, allowlist/blocklist, plug/socket). But never alter external URLs, library API calls, register names, branch names, or protocol-level identifiers to match — correctness and interoperability always come first. Load the inclusive-language steering file for the full guide.
 
 ## Troubleshooting
 

@@ -59,6 +59,31 @@ pio --version
 pio system info
 ```
 
+### IDE Setup (Kiro / VS Code Forks)
+
+This power is designed for use in Kiro IDE. Because Kiro is a VS Code fork, some extensions available on the Microsoft Marketplace are not directly installable from Kiro's built-in extension search. This affects two key extensions for PlatformIO development:
+
+#### C/C++ IntelliSense (Required)
+
+IntelliSense (code completion, go-to-definition, error squiggles) for C/C++ requires a language server. There are two options:
+
+**Option A — clangd (Recommended for Kiro).** The clangd extension (`llvm-vs-code-extensions.vscode-clangd`) is open-source and available on Open VSX. It may be installable directly from Kiro's extension search. If not, download the VSIX from the [VS Code Marketplace page](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd) and install via Command Palette → "Extensions: Install from VSIX...". clangd requires a `compile_commands.json` file to understand the project — PlatformIO generates this with `pio run -t compiledb`. See the project-init steering file for the full setup.
+
+**Option B — Microsoft C/C++ extension (VSIX sideload).** The Microsoft C/C++ extension (`ms-vscode.cpptools`) is the extension that the PlatformIO IDE extension depends on. It is only available on the Microsoft Marketplace and has licensing restrictions. If needed, download the VSIX for your platform from the [Marketplace page](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) and install via Command Palette → "Extensions: Install from VSIX...".
+
+#### PlatformIO IDE Extension (Optional)
+
+The PlatformIO IDE extension (`platformio.platformio-ide`) provides a GUI for building, uploading, and monitoring. It is not on Open VSX. This power uses the PlatformIO CLI directly, so the extension is not required — but if you want the GUI integration, download the VSIX from the [Marketplace page](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) and sideload it. Note: the PlatformIO IDE extension depends on the Microsoft C/C++ extension (Option B above).
+
+#### Verifying IntelliSense
+
+After installing a C/C++ language server extension, open a `.cpp` or `.c` file in the project. IntelliSense is working if:
+- `#include <Arduino.h>` (or other framework headers) does not show a red squiggle
+- Hovering over functions shows their signatures
+- Go-to-definition (F12) works on framework and library symbols
+
+If using clangd, you must first generate the compilation database (see project-init Step 11).
+
 ## Quick Workflows
 
 ### Discover What's Installed

@@ -17,6 +17,21 @@ pio system info
 
 If `pio` is not found, guide the user through installation (see POWER.md Onboarding). Do not proceed until `pio --version` returns a valid version string.
 
+#### IDE IntelliSense Check
+
+After confirming `pio` is available, check whether the user has C/C++ IntelliSense set up in their IDE. This power runs in Kiro IDE (a VS Code fork). Kiro may not have the Microsoft Marketplace, so extensions like PlatformIO IDE and Microsoft C/C++ may not be directly searchable.
+
+Ask the user (once, at the start of the first project setup):
+- "Do you have a C/C++ language server extension installed (clangd or Microsoft C/C++)? This is needed for IntelliSense — code completion, go-to-definition, and error highlighting in your source files."
+
+If they don't, or aren't sure, guide them:
+
+1. **Try clangd first** (recommended for Kiro). Search the extension marketplace for "clangd". If found, install it. If not found in the marketplace, the VSIX can be downloaded from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd) and installed via Command Palette → "Extensions: Install from VSIX...".
+2. **Alternative: Microsoft C/C++.** If the user prefers or needs the Microsoft C/C++ extension (e.g., for PlatformIO IDE extension compatibility), it must be sideloaded as a VSIX from the [Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools). Note: this extension has platform-specific builds — the user must download the correct one for their OS/architecture.
+3. **PlatformIO IDE extension** is optional. This power uses the CLI directly. If the user wants the GUI integration, it can also be sideloaded as a VSIX, but it depends on the Microsoft C/C++ extension.
+
+Do not block project creation on this — the user can set up IntelliSense later. But mention it early so they're aware. The compilation database setup in Step 11 will complete the IntelliSense configuration.
+
 ### Step 2: Determine Project Root Directory
 
 Apply these rules in order:
@@ -370,6 +385,64 @@ If the build fails, read the error output and fix the issue before reporting suc
 - Incorrect framework for the board
 - Boilerplate includes that don't match the framework version
 
+### Step 11: Set Up IntelliSense (Compilation Database)
+
+After a successful build, generate the compilation database so the C/C++ language server can provide accurate IntelliSense. This step is essential if the user is using clangd. It also benefits the Microsoft C/C++ extension.
+
+1. **Create the compilation database helper script.** PlatformIO's `compiledb` target does not include toolchain header paths by default, which causes clangd to report false errors on standard library and toolchain headers. Fix this by adding an extra script.
+
+   Add to `platformio.ini` (in the `[env]` or specific environment section):
+   ```ini
+   extra_scripts = pre:pre_compiledb.py
+   ```
+
+   Create `pre_compiledb.py` in the project root:
+   ```python
+   import os
+   Import("env")
+
+   # Include toolchain paths in compilation database
+   env.Replace(COMPILATIONDB_INCLUDE_TOOLCHAIN=True)
+
+   # Place compile_commands.json in the project root (where clangd expects it)
+   env.Replace(COMPILATIONDB_PATH=os.path.join(
+       env.subst("$PROJECT_DIR"), "compile_commands.json"
+   ))
+   ```
+
+2. **Generate the compilation database:**
+   ```bash
+   pio run -d <project_root> -t compiledb
+   ```
+   This creates `compile_commands.json` in the project root.
+
+3. **Add `compile_commands.json` to `.gitignore`** (it's machine-specific and regenerated on demand):
+   ```
+   compile_commands.json
+   ```
+
+4. **For clangd users**, optionally create a `.clangd` config file in the project root to suppress common false positives with cross-compilation toolchains:
+   ```yaml
+   CompileFlags:
+     Remove:
+       - -mtext-section-literals
+       - -mlongcalls
+       - -fstrict-volatile-bitfields
+       - -free
+       - -fipa-pta
+   ```
+   The specific flags to remove depend on the platform. ESP32 (xtensa) commonly needs the flags above removed. ARM and AVR toolchains may need different adjustments. If clangd shows errors on valid code after generating the compilation database, check the `compile_commands.json` for unfamiliar flags and add them to the `Remove` list.
+
+5. **Verify IntelliSense.** Tell the user to open `src/main.cpp` (or `.c`) and check:
+   - Framework headers (e.g., `#include <Arduino.h>`) resolve without errors
+   - Hovering over functions shows signatures
+   - Go-to-definition (F12) navigates to framework/library source
+
+   If IntelliSense still shows errors, the most common causes are:
+   - No C/C++ language server extension installed (see Step 1 IDE check)
+   - `compile_commands.json` not generated (re-run `pio run -t compiledb`)
+   - Toolchain flags not recognized by clangd (update `.clangd` Remove list)
+
 ## Multi-Board Projects
 
 If the user wants to target multiple boards in one project:
@@ -388,6 +461,7 @@ If the user wants to target multiple boards in one project:
 Before reporting project creation as complete, verify all of the following:
 
 - [ ] `pio --version` confirmed working
+- [ ] IDE IntelliSense extension status checked with user (clangd or Microsoft C/C++)
 - [ ] Project root directory confirmed with user
 - [ ] Board ID validated against `pio boards` (or custom board definition created with sources cited)
 - [ ] Framework confirmed (auto-selected or user-chosen)
@@ -397,3 +471,5 @@ Before reporting project creation as complete, verify all of the following:
 - [ ] `platformio.ini` has `monitor_speed = 115200`
 - [ ] `.gitignore` includes `.pio/`
 - [ ] `pio run` build succeeded
+- [ ] Compilation database generated (`pio run -t compiledb`) with `pre_compiledb.py` for toolchain paths
+- [ ] `compile_commands.json` added to `.gitignore`
